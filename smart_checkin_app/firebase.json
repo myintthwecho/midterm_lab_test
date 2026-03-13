@@ -1,1 +1,31 @@
-{"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"smart-class-checkin-f78b5","configurations":{"web":"1:56992450916:web:18d4d3506d2e9c5f59d271"}}}}}}
+{
+	"hosting": {
+		"public": "build/web",
+		"ignore": [
+			"firebase.json",
+			"**/.*",
+			"**/node_modules/**"
+		],
+		"rewrites": [
+			{
+				"source": "**",
+				"destination": "/index.html"
+			}
+		]
+	},
+	"firestore": {
+		"rules": "firestore.rules"
+	},
+	"flutter": {
+		"platforms": {
+			"dart": {
+				"lib/firebase_options.dart": {
+					"projectId": "smart-class-checkin-f78b5",
+					"configurations": {
+						"web": "1:56992450916:web:18d4d3506d2e9c5f59d271"
+					}
+				}
+			}
+		}
+	}
+}
