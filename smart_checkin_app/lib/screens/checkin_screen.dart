@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/location_service.dart';
+import '../services/qr_service.dart';
+
 class CheckinScreen extends StatefulWidget {
   const CheckinScreen({super.key});
 
@@ -8,30 +11,87 @@ class CheckinScreen extends StatefulWidget {
 }
 
 class _CheckinScreenState extends State<CheckinScreen> {
-  String _sessionToken = 'Not scanned yet';
-  String _location = 'Location not retrieved';
+  final QrService _qrService = QrService();
+  final LocationService _locationService = LocationService();
   final TextEditingController _previousTopicController = TextEditingController();
   final TextEditingController _expectedTopicController = TextEditingController();
   int _mood = 3;
+  String? sessionToken;
+  double? latitude;
+  double? longitude;
+  bool _isScanning = false;
+  bool _isLoadingLocation = false;
 
   final List<String> _moodEmojis = ['😡', '🙁', '😐', '🙂', '😄'];
 
-  void _simulateScan() {
+  Future<void> _scanQrCode() async {
     setState(() {
-      _sessionToken = 'SESSION-2026-ABC123';
+      _isScanning = true;
     });
+
+    try {
+      final scannedToken = await _qrService.scanQrCode(context);
+      if (!mounted || scannedToken == null) {
+        return;
+      }
+
+      setState(() {
+        sessionToken = scannedToken;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('QR scan failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+        });
+      }
+    }
   }
 
-  void _simulateLocation() {
+  Future<void> _getCurrentLocation() async {
     setState(() {
-      _location = 'Lat: 13.7563, Lng: 100.5018';
+      _isLoadingLocation = true;
     });
+
+    try {
+      final locationResult = await _locationService.getCurrentLocation();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        latitude = locationResult.latitude;
+        longitude = locationResult.longitude;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Location failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingLocation = false;
+        });
+      }
+    }
   }
 
   void _submit() {
     debugPrint('--- Check-in Submitted ---');
-    debugPrint('Session Token: $_sessionToken');
-    debugPrint('Location: $_location');
+    debugPrint('Session Token: ${sessionToken ?? 'Not scanned yet'}');
+    debugPrint('Latitude: ${latitude?.toStringAsFixed(6) ?? 'Not available'}');
+    debugPrint('Longitude: ${longitude?.toStringAsFixed(6) ?? 'Not available'}');
     debugPrint('Previous Topic: ${_previousTopicController.text}');
     debugPrint('Expected Topic: ${_expectedTopicController.text}');
     debugPrint('Mood: $_mood (${_moodEmojis[_mood - 1]})');
@@ -50,6 +110,10 @@ class _CheckinScreenState extends State<CheckinScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locationText = latitude == null || longitude == null
+        ? 'Location not retrieved'
+        : 'Lat: ${latitude!.toStringAsFixed(6)}, Lng: ${longitude!.toStringAsFixed(6)}';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Check-in'),
@@ -62,22 +126,24 @@ class _CheckinScreenState extends State<CheckinScreen> {
           children: [
             // QR Section
             ElevatedButton(
-              onPressed: _simulateScan,
-              child: const Text('Scan QR Code'),
+              onPressed: _isScanning ? null : _scanQrCode,
+              child: Text(_isScanning ? 'Scanning...' : 'Scan QR Code'),
             ),
             const SizedBox(height: 8),
-            Text('Session Token: $_sessionToken',
+            Text('Session Token: ${sessionToken ?? 'Not scanned yet'}',
                 style: const TextStyle(fontSize: 13, color: Colors.grey)),
 
             const SizedBox(height: 16),
 
             // GPS Section
             ElevatedButton(
-              onPressed: _simulateLocation,
-              child: const Text('Get GPS Location'),
+              onPressed: _isLoadingLocation ? null : _getCurrentLocation,
+              child: Text(
+                _isLoadingLocation ? 'Getting Location...' : 'Get GPS Location',
+              ),
             ),
             const SizedBox(height: 8),
-            Text(_location,
+            Text(locationText,
                 style: const TextStyle(fontSize: 13, color: Colors.grey)),
 
             const SizedBox(height: 24),
