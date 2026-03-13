@@ -1,5 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/checkin_record.dart';
+
 class FirestoreService {
-  // Responsible for all communication with Firebase Firestore.
-  // Will handle saving check-in records, finishing class records,
-  // and any future read operations (e.g. history retrieval).
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  Future<void> saveCheckinRecord(CheckinRecord record) async {
+    await _db.collection('checkins').add(record.toMap());
+  }
+
+  Future<void> saveFinishClassRecord(CheckinRecord record) async {
+    await _db.collection('finish_class').add(record.toMap());
+  }
 }

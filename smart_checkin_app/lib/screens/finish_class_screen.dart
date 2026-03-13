@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/checkin_record.dart';
+import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../services/qr_service.dart';
 
@@ -13,6 +15,8 @@ class FinishClassScreen extends StatefulWidget {
 class _FinishClassScreenState extends State<FinishClassScreen> {
   final QrService _qrService = QrService();
   final LocationService _locationService = LocationService();
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isSubmitting = false;
   final TextEditingController _learnedTodayController = TextEditingController();
   final TextEditingController _feedbackController = TextEditingController();
   String? sessionToken;
@@ -84,17 +88,44 @@ class _FinishClassScreenState extends State<FinishClassScreen> {
     }
   }
 
-  void _submit() {
-    debugPrint('--- Finish Class Submitted ---');
-    debugPrint('Session Token: ${sessionToken ?? 'Not scanned yet'}');
-    debugPrint('Latitude: ${latitude?.toStringAsFixed(6) ?? 'Not available'}');
-    debugPrint('Longitude: ${longitude?.toStringAsFixed(6) ?? 'Not available'}');
-    debugPrint('Learned Today: ${_learnedTodayController.text}');
-    debugPrint('Feedback: ${_feedbackController.text}');
+  Future<void> _submit() async {
+    if (sessionToken == null || latitude == null || longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please scan QR code and get location first.')),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reflection submitted. Check the console.')),
-    );
+    setState(() => _isSubmitting = true);
+
+    try {
+      final record = CheckinRecord(
+        studentId: 'student_001',
+        sessionToken: sessionToken!,
+        latitude: latitude!,
+        longitude: longitude!,
+        timestamp: DateTime.now(),
+        previousTopic: '',
+        expectedTopic: '',
+        mood: 0,
+        learnedToday: _learnedTodayController.text,
+        feedback: _feedbackController.text,
+      );
+
+      await _firestoreService.saveFinishClassRecord(record);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reflection saved to Firestore!')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -161,13 +192,13 @@ class _FinishClassScreenState extends State<FinishClassScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: _submit,
+              onPressed: _isSubmitting ? null : _submit,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text(
-                'Submit Reflection',
-                style: TextStyle(fontSize: 16),
+              child: Text(
+                _isSubmitting ? 'Saving...' : 'Submit Reflection',
+                style: const TextStyle(fontSize: 16),
               ),
             ),
           ],

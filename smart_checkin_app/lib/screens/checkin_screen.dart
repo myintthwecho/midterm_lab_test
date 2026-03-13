@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/checkin_record.dart';
+import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../services/qr_service.dart';
 
@@ -13,6 +15,8 @@ class CheckinScreen extends StatefulWidget {
 class _CheckinScreenState extends State<CheckinScreen> {
   final QrService _qrService = QrService();
   final LocationService _locationService = LocationService();
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isSubmitting = false;
   final TextEditingController _previousTopicController = TextEditingController();
   final TextEditingController _expectedTopicController = TextEditingController();
   int _mood = 3;
@@ -87,18 +91,44 @@ class _CheckinScreenState extends State<CheckinScreen> {
     }
   }
 
-  void _submit() {
-    debugPrint('--- Check-in Submitted ---');
-    debugPrint('Session Token: ${sessionToken ?? 'Not scanned yet'}');
-    debugPrint('Latitude: ${latitude?.toStringAsFixed(6) ?? 'Not available'}');
-    debugPrint('Longitude: ${longitude?.toStringAsFixed(6) ?? 'Not available'}');
-    debugPrint('Previous Topic: ${_previousTopicController.text}');
-    debugPrint('Expected Topic: ${_expectedTopicController.text}');
-    debugPrint('Mood: $_mood (${_moodEmojis[_mood - 1]})');
+  Future<void> _submit() async {
+    if (sessionToken == null || latitude == null || longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please scan QR code and get location first.')),
+      );
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Check-in submitted! Check the console.')),
-    );
+    setState(() => _isSubmitting = true);
+
+    try {
+      final record = CheckinRecord(
+        studentId: 'student_001',
+        sessionToken: sessionToken!,
+        latitude: latitude!,
+        longitude: longitude!,
+        timestamp: DateTime.now(),
+        previousTopic: _previousTopicController.text,
+        expectedTopic: _expectedTopicController.text,
+        mood: _mood,
+        learnedToday: '',
+        feedback: '',
+      );
+
+      await _firestoreService.saveCheckinRecord(record);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Check-in saved to Firestore!')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -207,12 +237,12 @@ class _CheckinScreenState extends State<CheckinScreen> {
 
             // Submit
             ElevatedButton(
-              onPressed: _submit,
+              onPressed: _isSubmitting ? null : _submit,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Submit Check-in',
-                  style: TextStyle(fontSize: 16)),
+              child: Text(_isSubmitting ? 'Saving...' : 'Submit Check-in',
+                  style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
