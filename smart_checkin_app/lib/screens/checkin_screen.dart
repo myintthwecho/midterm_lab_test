@@ -244,6 +244,7 @@ class _CheckinScreenState extends State<CheckinScreen> {
               child: Text(_isSubmitting ? 'Saving...' : 'Submit Check-in',
                   style: const TextStyle(fontSize: 16)),
             ),
+
           ],
         ),
       ),

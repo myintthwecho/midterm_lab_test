@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class CheckinRecord {
   CheckinRecord({
     required this.studentId,
@@ -29,7 +31,7 @@ class CheckinRecord {
       'sessionToken': sessionToken,
       'latitude': latitude,
       'longitude': longitude,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': Timestamp.fromDate(timestamp),
       'previousTopic': previousTopic,
       'expectedTopic': expectedTopic,
       'mood': mood,
@@ -44,8 +46,9 @@ class CheckinRecord {
       sessionToken: map['sessionToken'] as String? ?? '',
       latitude: (map['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (map['longitude'] as num?)?.toDouble() ?? 0,
-      timestamp: DateTime.tryParse(map['timestamp'] as String? ?? '') ??
-          DateTime.now(),
+      timestamp: map['timestamp'] is Timestamp
+          ? (map['timestamp'] as Timestamp).toDate()
+          : DateTime.tryParse(map['timestamp'] as String? ?? '') ?? DateTime.now(),
       previousTopic: map['previousTopic'] as String? ?? '',
       expectedTopic: map['expectedTopic'] as String? ?? '',
       mood: map['mood'] as int? ?? 0,
